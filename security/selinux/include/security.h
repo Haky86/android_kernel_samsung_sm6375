@@ -118,15 +118,14 @@ void selinux_avc_init(struct selinux_avc **avc);
 extern struct selinux_state selinux_state;
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-extern int selinux_enforcing;
 static inline bool enforcing_enabled(struct selinux_state *state)
 {
-	return selinux_enforcing; // SEC_SELINUX_PORTING_COMMON Change to use RKP 
+	return state->enforcing;
 }
 
 static inline void enforcing_set(struct selinux_state *state, bool value)
 {
-	selinux_enforcing = value; // SEC_SELINUX_PORTING_COMMON Change to use RKP
+	state->enforcing = value;
 }
 #else
 static inline bool enforcing_enabled(struct selinux_state *state)
@@ -238,13 +237,7 @@ struct extended_perms {
 };
 
 /* definitions of av_decision.flags */
-// [ SEC_SELINUX_PORTING_COMMON
-#ifdef CONFIG_ALWAYS_ENFORCE
-#define AVD_FLAGS_PERMISSIVE	0x0000
-#else
 #define AVD_FLAGS_PERMISSIVE	0x0001
-#endif
-// ] SEC_SELINUX_PORTING_COMMON
 
 void security_compute_av(struct selinux_state *state,
 			 u32 ssid, u32 tsid,
@@ -419,6 +412,5 @@ extern void avtab_cache_init(void);
 extern void ebitmap_cache_init(void);
 extern void hashtab_cache_init(void);
 extern void selinux_nlmsg_init(void);
-extern int security_sidtab_hash_stats(struct selinux_state *state, char *page);
 
 #endif /* _SELINUX_SECURITY_H_ */

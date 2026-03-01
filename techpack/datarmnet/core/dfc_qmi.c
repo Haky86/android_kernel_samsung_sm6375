@@ -940,10 +940,11 @@ int dfc_bearer_flow_ctl(struct net_device *dev,
 		qmi_rmnet_flow_control(dev, bearer->ack_mq_idx,
 				       enable || bearer->tcp_bidir);
 	}
-
+	
 	net_log("m=%d b=%u q=%d gr=%u mq %s",
 		qos->mux_id, bearer->bearer_id, bearer->mq_idx, bearer->grant_size,
 		enable ? "en" : "dis");
+
 	qmi_rmnet_flow_control(dev, bearer->mq_idx, enable);
 
 	if (!enable && bearer->ack_req)
@@ -1174,7 +1175,7 @@ static void dfc_update_tx_link_status(struct net_device *dev,
 	/* If no change in tx status, ignore */
 	if (itm->tx_off == !tx_status)
 		return;
-	
+
 	net_log("Link> %s, b=%d, gr=%d, rs=%d, status %d\n", dev->name,
 		binfo->bearer_id, itm->grant_size, itm->rat_switch, tx_status);
 	

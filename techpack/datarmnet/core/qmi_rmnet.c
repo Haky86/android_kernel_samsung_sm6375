@@ -207,21 +207,21 @@ int qmi_rmnet_flow_control(struct net_device *dev, u32 mq_idx, int enable)
 	struct netdev_queue *q;
 	struct timespec ts;
 	struct rtc_time tm;
-	
+
 	if (unlikely(mq_idx >= dev->num_tx_queues))
 		return 0;
 
-	q = netdev_get_tx_queue(dev, mq_idx);
-	if (unlikely(!q))
-		return 0;
-	
 	getnstimeofday(&ts);
 	rtc_time_to_tm(ts.tv_sec, &tm);
 	net_log("%d-%02d-%02d %02d:%02d:%02d.%06lu, %s[%d] %s_queue\n", 
 				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 				tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec/1000,
 				dev->name, mq_idx, enable ? "wake" : "stop");
-				
+
+	q = netdev_get_tx_queue(dev, mq_idx);
+	if (unlikely(!q))
+		return 0;
+
 	if (enable)
 		netif_tx_wake_queue(q);
 	else
@@ -407,11 +407,13 @@ static void __qmi_rmnet_update_mq(struct net_device *dev,
 			dev->name, qos_info->mux_id, itm->bearer_id,
 			bearer->grant_size,	itm->flow_id, itm->mq_idx);
 		qmi_rmnet_flow_control(dev, itm->mq_idx, 1);
+
 		if (dfc_mode == DFC_MODE_SA) {
 			net_log("update_mq %s m=%d b=%u gr=%u f=%u q=%d en",
 				dev->name, qos_info->mux_id, itm->bearer_id,
 				bearer->grant_size,	itm->flow_id, bearer->ack_mq_idx);
-			qmi_rmnet_flow_control(dev, bearer->ack_mq_idx, 1);
+			qmi_rmnet_flow_control(dev, bearer->ack_mq_idx,
+					bearer->grant_size > 0 ? 1 : 0);
 		}
 	}
 }

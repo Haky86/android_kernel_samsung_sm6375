@@ -735,7 +735,6 @@ struct dwc3_ep_events {
  * @desc: usb_endpoint_descriptor pointer
  * @dwc: pointer to DWC controller
  * @saved_state: ep state saved during hibernation
- * @missed_isoc_packets: counter for missed packets sent
  * @flags: endpoint flags (wedged, stalled, ...)
  * @number: endpoint number (1 - 15)
  * @type: set to bmAttributes & USB_ENDPOINT_XFERTYPE_MASK
@@ -769,7 +768,6 @@ struct dwc3_ep {
 	struct dwc3		*dwc;
 
 	u32			saved_state;
-	u32			missed_isoc_packets;
 	unsigned		flags;
 #define DWC3_EP_ENABLED		BIT(0)
 #define DWC3_EP_STALL		BIT(1)
@@ -862,6 +860,11 @@ enum gadget_state {
 	DWC3_GADGET_SOFT_CONN,
 	DWC3_GADGET_CABLE_CONN,
 	DWC3_GADGET_ACTIVE,
+};
+
+enum {
+	RELEASE	= 0,
+	NOTIFY	= 1,
 };
 
 /* TRB Length, PCM and Status */
@@ -1421,11 +1424,34 @@ struct dwc3 {
 	u32			gen2_tx_de_emph2;
 	u32			gen2_tx_de_emph3;
 	ktime_t			last_run_stop;
+#if IS_ENABLED(CONFIG_USB_CHARGING_EVENT)
+	struct work_struct	set_vbus_current_work;
+	int			vbus_current; /* 0 : 100mA, 1 : 500mA, 2: 900mA */
+#endif
+	struct delayed_work usb_event_work;
+	ktime_t rst_time_before;
+	ktime_t rst_time_first;
+	int rst_err_cnt;
+	bool rst_err_noti;
+	bool event_state;
+	bool acc_dev_status;
+	int usb_function_info;
 	bool			is_remote_wakeup_enabled;
 	wait_queue_head_t	wait_linkstate;
 	struct work_struct	remote_wakeup_work;
 	bool			dual_port;
 };
+
+#define GADGET_MTP	0x01
+#define GADGET_RNDIS	0x02
+#define GADGET_ACCESSORY	0x04
+#define GADGET_ADB	0x08
+#define GADGET_ACM	0x10
+#define GADGET_DM	0x20
+#define GADGET_MIDI	0x40
+#define GADGET_CONN_GADGET	0x80
+
+#define ERR_RESET_CNT	4
 
 #define INCRX_BURST_MODE 0
 #define INCRX_UNDEF_LENGTH_BURST_MODE 1

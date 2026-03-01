@@ -538,7 +538,6 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 					     unsigned int cid, bool granted)
 {
 	struct glink_channel *channel;
-
 	channel = qcom_glink_channel_ref_get(glink, true, cid);
 	if (!channel) {
 		dev_err(glink->dev, "unable to find channel\n");
@@ -697,7 +696,7 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 	/* We don't send RX_DONE to intentless systems */
 	if (glink->intentless) {
 		kfree(intent->data);
-		kfree(intent);
+		kfree(intent);		
 		return;
 	}
 
@@ -1050,7 +1049,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 			intent = kzalloc(sizeof(*intent), GFP_ATOMIC);
 			if (!intent) {
 				qcom_glink_channel_ref_put(channel);
-				return -ENOMEM;
+ 				return -ENOMEM;
 			}
 
 			intent->data = kmalloc(chunk_size + left_size,
@@ -1062,6 +1061,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 			}
 
 			intent->id = 0xbabababa;
+
 			intent->size = chunk_size + left_size;
 			intent->offset = 0;
 
@@ -1165,7 +1165,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 	msg = kmalloc(msglen, GFP_ATOMIC);
 	if (!msg) {
 		qcom_glink_channel_ref_put(channel);
-		return;
+ 		return;
 	}
 
 	qcom_glink_rx_peak(glink, msg, 0, msglen);

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1595,7 +1594,7 @@ int32_t npu_host_unload_network(struct npu_client *client,
 	}
 
 	if (network->is_unloading) {
-		pr_err("network is unloading\n");
+		NPU_ERR("network is unloading\n");
 		network_put(network);
 		mutex_unlock(&host_ctx->lock);
 		return -EINVAL;
@@ -1619,6 +1618,7 @@ int32_t npu_host_unload_network(struct npu_client *client,
 		pr_err("fw in error state, skip unload network in fw\n");
 		goto free_network;
 	}
+
 	network->is_unloading = true;
 
 	pr_debug("Unload network %lld\n", network->id);
@@ -1849,7 +1849,7 @@ int32_t npu_host_exec_network_v2(struct npu_client *client,
 		npu_notify_cdsprm_cxlimit_activity(npu_dev, true);
 
 	if (network->is_unloading) {
-		pr_err("network is unloading\n");
+		NPU_ERR("network is unloading\n");
 		ret = -EINVAL;
 		goto exec_v2_done;
 	}
@@ -1860,15 +1860,15 @@ int32_t npu_host_exec_network_v2(struct npu_client *client,
 		goto exec_v2_done;
 	}
 
-	if (network->is_executing) {
-		pr_err("network is already in execution\n");
-		ret = -EINVAL;
-		goto exec_v2_done;
-	}
-
 	if (network->fw_error) {
 		pr_err("fw is in error state\n");
 		ret = -EIO;
+		goto exec_v2_done;
+	}
+
+	if (network->is_executing) {
+		pr_err("network is already in execution\n");
+		ret = -EINVAL;
 		goto exec_v2_done;
 	}
 

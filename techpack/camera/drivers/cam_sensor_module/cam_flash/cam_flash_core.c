@@ -13,6 +13,20 @@
 #include "cam_packet_util.h"
 #include <linux/math64.h>
 
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+#include <linux/leds-s2mu106.h>
+#include <linux/muic/common/muic.h>
+
+extern int ext_pmic_cam_fled_ctrl(int cam_mode, int curr);
+extern int muic_afc_request_voltage(int cause, int voltage);
+extern void pdo_ctrl_by_flash(bool mode);
+bool is_fastcharger_disabled = false;
+#endif
+
+#if IS_REACHABLE(CONFIG_LEDS_SM5714)
+#include <linux/mfd/sm/sm5714/sm5714.h>
+#endif
+
 static uint default_on_timer = 2;
 module_param(default_on_timer, uint, 0644);
 
@@ -20,6 +34,9 @@ int cam_flash_led_prepare(struct led_trigger *trigger, int options,
 	int *max_current, bool is_wled)
 {
 	int rc = 0;
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+	return rc;
+#endif
 
 	if (is_wled) {
 #if IS_REACHABLE(CONFIG_BACKLIGHT_QCOM_SPMI_WLED)
@@ -466,6 +483,23 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 		CAM_ERR(CAM_FLASH, "Flash control Null");
 		return -EINVAL;
 	}
+#if IS_REACHABLE(CONFIG_LEDS_SM5714) 
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "sm5714"))) {
+		CAM_DBG(CAM_FLASH, "CAM Flash OFF");
+		sm5714_fled_mode_ctrl(SM5714_FLED_MODE_OFF, 0);
+		flash_ctrl->flash_state = CAM_FLASH_STATE_START;
+		return rc;
+	}
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "s2mu106"))) {
+		CAM_DBG(CAM_FLASH, "CAM Flash OFF");
+		ext_pmic_cam_fled_ctrl(CAMERA_SENSOR_FLASH_OP_OFF, 0);
+		return rc;
+	}
+#endif
 	CAM_DBG(CAM_FLASH, "Flash OFF Triggered");
 	if (flash_ctrl->switch_trigger)
 		cam_res_mgr_led_trigger_event(flash_ctrl->switch_trigger,
@@ -494,6 +528,23 @@ static int cam_flash_low(
 		return -EINVAL;
 	}
 
+#if IS_REACHABLE(CONFIG_LEDS_SM5714) 
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "sm5714"))) {
+		CAM_DBG(CAM_FLASH, "CAM Low Flash ON");
+		rc =  sm5714_fled_mode_ctrl(SM5714_FLED_MODE_PRE_FLASH, FLED_MODE_TORCH << 12 & 0xF000);
+		return rc;
+	}
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "s2mu106"))) {
+		CAM_DBG(CAM_FLASH, "CAM Low Flash ON");
+		ext_pmic_cam_fled_ctrl(flash_data->opcode, flash_data->led_current_ma[0]);
+		return rc;
+	}
+#endif
+
 	for (i = 0; i < flash_ctrl->flash_num_sources; i++)
 		if (flash_ctrl->flash_trigger[i])
 			cam_res_mgr_led_trigger_event(
@@ -519,6 +570,23 @@ static int cam_flash_high(
 		return -EINVAL;
 	}
 
+#if IS_REACHABLE(CONFIG_LEDS_SM5714) 
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "sm5714"))) {
+		sm5714_fled_mode_ctrl(SM5714_FLED_MODE_MAIN_FLASH, FLED_MODE_FLASH << 12 & 0xF000);
+		CAM_INFO(CAM_FLASH, "CAM Flash ON, current = %d",flash_data->led_current_ma[0]);
+		return rc;
+	}
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+	if ((NULL != flash_ctrl->soc_info.label_name) &&
+		(NULL  != strstr(flash_ctrl->soc_info.label_name, "s2mu106"))) {
+		CAM_DBG(CAM_FLASH, "cam_flash_high");
+		ext_pmic_cam_fled_ctrl(flash_data->opcode, flash_data->led_current_ma[0]);
+		return rc;
+	}
+#endif
+
 	for (i = 0; i < flash_ctrl->torch_num_sources; i++)
 		if (flash_ctrl->torch_trigger[i])
 			cam_res_mgr_led_trigger_event(
@@ -532,7 +600,7 @@ static int cam_flash_high(
 
 	return rc;
 }
-
+/*
 static int cam_flash_duration(struct cam_flash_ctrl *fctrl,
 	struct cam_flash_frame_setting *flash_data)
 {
@@ -555,7 +623,7 @@ static int cam_flash_duration(struct cam_flash_ctrl *fctrl,
 		CAM_ERR(CAM_FLASH, "Fire PreciseFlash Failed: %d", rc);
 
 	return rc;
-}
+}*/
 
 static int cam_flash_i2c_delete_req(struct cam_flash_ctrl *fctrl,
 	uint64_t req_id)
@@ -943,6 +1011,31 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 			(flash_data->cmn_attr.is_settings_valid) &&
 			(flash_data->cmn_attr.request_id == req_id)) {
 			rc = cam_flash_off(fctrl);
+			CAM_DBG(CAM_FLASH,
+				"flash_data->ispreflashoff :%d, req:%u",
+				flash_data->ispreflashoff, req_id);
+#if IS_REACHABLE(CONFIG_LEDS_SM5714) 
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "sm5714"))) {
+				if (flash_data->ispreflashoff == FALSE) {
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_CLOSE_FLASH, 0);
+					CAM_DBG(CAM_FLASH, "SM5714 close flash");
+				}
+			}
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "s2mu106"))) {
+				if (flash_data->ispreflashoff == FALSE) {
+					if (is_fastcharger_disabled) {
+						pdo_ctrl_by_flash(0);
+						muic_afc_request_voltage(FLED, 9);
+						is_fastcharger_disabled = false;
+						CAM_DBG(CAM_FLASH, "s2mu106 Enable fast charger");
+					}
+				}
+			}
+#endif
 			if (rc) {
 				CAM_ERR(CAM_FLASH,
 					"Flash off failed %d", rc);
@@ -953,6 +1046,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 			(flash_data->cmn_attr.is_settings_valid) &&
 			(flash_data->cmn_attr.request_id == req_id)) {
 			if (fctrl->flash_state == CAM_FLASH_STATE_START) {
+#if 0
 				rc = cam_flash_duration(fctrl, flash_data);
 				if (rc) {
 					CAM_ERR(CAM_FLASH,
@@ -960,6 +1054,7 @@ int cam_flash_pmic_apply_setting(struct cam_flash_ctrl *fctrl,
 						rc);
 					goto apply_setting_err;
 				}
+#endif
 			}
 		} else if (flash_data->opcode == CAM_PKT_NOP_OPCODE) {
 			CAM_DBG(CAM_FLASH, "NOP Packet");
@@ -1581,6 +1676,30 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 				fctrl->nrt_info.led_current_ma[i] =
 				flash_operation_info->led_current_ma[i];
 
+#if IS_REACHABLE(CONFIG_LEDS_SM5714)
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "sm5714"))) {
+				CAM_INFO(CAM_FLASH, "CAMERA_SENSOR_FLASH_CMD_TYPE_INIT_INFO led_current_ma = %d", fctrl->nrt_info.led_current_ma[0]);
+				if(flash_operation_info->opcode == CAMERA_SENSOR_FLASH_OP_FIRELOW) {
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_PREPARE_FLASH, 0);
+				}
+				if(fctrl->nrt_info.led_current_ma[0] > 0) {
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_TORCH_FLASH, fctrl->nrt_info.led_current_ma[0] & 0x0FFF);
+				}
+			} 
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "s2mu106"))) {
+				if (flash_operation_info->opcode == CAMERA_SENSOR_FLASH_OP_FIRELOW) {
+					pdo_ctrl_by_flash(1);
+					muic_afc_request_voltage(FLED, 5);
+					is_fastcharger_disabled = true;
+					CAM_DBG(CAM_FLASH, "s2mu106 disable fast charger");
+				}
+			}
+#endif
+
 			rc = fctrl->func_tbl.apply_setting(fctrl, 0);
 			if (rc)
 				CAM_ERR(CAM_FLASH,
@@ -1692,12 +1811,35 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			}
 
 			flash_data->opcode = flash_operation_info->opcode;
+			flash_data->ispreflashoff = flash_operation_info->ispreflashoff;
 			flash_data->cmn_attr.count =
 				flash_operation_info->count;
 			for (i = 0; i < flash_operation_info->count; i++)
 				flash_data->led_current_ma[i]
 				= flash_operation_info->led_current_ma[i];
 
+#if IS_REACHABLE(CONFIG_LEDS_SM5714)
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "sm5714"))) {
+				if (flash_data->opcode == CAMERA_SENSOR_FLASH_OP_FIRELOW) {
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_PREPARE_FLASH, 0);
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_TORCH_FLASH, flash_data->led_current_ma[0] & 0x0FFF);
+				} else if (flash_data->opcode == CAMERA_SENSOR_FLASH_OP_FIREHIGH) {
+					sm5714_fled_mode_ctrl(SM5714_FLED_MODE_MAIN_FLASH, flash_data->led_current_ma[0] & 0x0FFF);
+				}
+			} 
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+			if ((NULL != fctrl->soc_info.label_name) &&
+				(NULL  != strstr(fctrl->soc_info.label_name, "s2mu106"))) {
+				if (flash_data->opcode == CAMERA_SENSOR_FLASH_OP_FIRELOW) {
+					pdo_ctrl_by_flash(1);
+					muic_afc_request_voltage(FLED, 5);
+					is_fastcharger_disabled = true;
+					CAM_DBG(CAM_FLASH, "s2mu106 disable fast charger");
+				}
+			}
+#endif
 			CAM_DBG(CAM_FLASH,
 				"FLASH_CMD_TYPE op:%d, req:%lld",
 				flash_data->opcode, csl_packet->header.request_id);
@@ -1814,7 +1956,7 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			}
 			flash_query_info =
 				(struct cam_flash_query_curr *)cmd_buf;
-
+#if !defined(CONFIG_LEDS_SM5714)
 			rc = cam_flash_led_prepare(fctrl->switch_trigger,
 				QUERY_MAX_AVAIL_CURRENT, &query_curr_ma,
 				soc_private->is_wled_flash);
@@ -1828,6 +1970,7 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 				cam_mem_put_cpu_buf(config.packet_handle);
 				return rc;
 			}
+#endif
 			flash_query_info->query_current_ma = query_curr_ma;
 			break;
 		}
@@ -1998,6 +2141,24 @@ int cam_flash_establish_link(struct cam_req_mgr_core_dev_link_setup *link)
 int cam_flash_release_dev(struct cam_flash_ctrl *fctrl)
 {
 	int rc = 0;
+#if IS_REACHABLE(CONFIG_LEDS_SM5714)
+	if ((NULL != fctrl->soc_info.label_name) &&
+		(NULL  != strstr(fctrl->soc_info.label_name, "sm5714"))) {
+		sm5714_fled_mode_ctrl(SM5714_FLED_MODE_CLOSE_FLASH, 0);
+		CAM_DBG(CAM_FLASH, "SM5714 close flash");
+	}
+#endif
+#if IS_REACHABLE(CONFIG_LEDS_S2MU106_FLASH)
+	if ((NULL != fctrl->soc_info.label_name) &&
+		(NULL  != strstr(fctrl->soc_info.label_name, "s2mu106"))) {
+		if (is_fastcharger_disabled) {
+			pdo_ctrl_by_flash(0);
+			muic_afc_request_voltage(FLED, 9);
+			is_fastcharger_disabled = false;
+			CAM_DBG(CAM_FLASH, "s2mu106 Enable fast charger");
+		}
+	}
+#endif
 
 	if (fctrl->i2c_data.streamoff_settings.is_settings_valid == true) {
 		fctrl->i2c_data.streamoff_settings.is_settings_valid = false;

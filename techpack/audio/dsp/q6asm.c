@@ -158,6 +158,14 @@ static uint32_t adsp_raise_event_opcode[] = {
 	ASM_STREAM_CMD_ENCDEC_EVENTS,
 	ASM_IEC_61937_MEDIA_FMT_EVENT };
 
+#ifdef CONFIG_SEC_SND_ADAPTATION
+struct audio_session *q6asm_get_audio_session(void)
+{
+	return session;
+}
+EXPORT_SYMBOL(q6asm_get_audio_session);
+#endif /* CONFIG_SEC_SND_ADAPTATION */
+
 static int is_adsp_reg_event(uint32_t cmd)
 {
 	int i;
@@ -11382,11 +11390,12 @@ static int q6asm_get_asm_topology_apptype(struct q6asm_cal_info *cal_info, struc
 			goto unlock;
 		}
 	} else {
-		cal_block = q6asm_find_cal_by_buf_number(ASM_TOPOLOGY_CAL, 0, 0, path);
+		pr_info("%s call q6asm_find_cal_by_buf_number path: %d", __func__, path);
+		cal_block = cal_utils_get_only_cal_block(cal_data[ASM_TOPOLOGY_CAL]);
 		if (cal_block == NULL) {
-			pr_debug("%s: Couldn't find cal_block with buf_number, re-routing "
-				"search using CAL type only\n", __func__);
-			cal_block = cal_utils_get_only_cal_block(cal_data[ASM_TOPOLOGY_CAL]);
+			pr_debug("%s: Couldn't find cal_block with CAL type, re-routing "
+					"search using buf_number\n", __func__);
+			cal_block = q6asm_find_cal_by_buf_number(ASM_TOPOLOGY_CAL, 0, 0, path);
 		}
 		if (cal_block == NULL || cal_utils_is_cal_stale(cal_block))
 			goto unlock;

@@ -5,6 +5,8 @@ ccflags-y += -I$(srctree)/techpack/display/rotator
 ccflags-y += -I$(srctree)/techpack/display/hdcp
 ccflags-y += -I$(srctree)/drivers/clk/qcom/
 
+ccflags-$(CONFIG_DISPLAY_SAMSUNG) += -I$(srctree)/techpack/display/msm/samsung
+
 msm_drm-$(CONFIG_DRM_MSM_DP) += dp/dp_altmode.o \
 	dp/dp_parser.o \
 	dp/dp_power.o \
@@ -158,3 +160,70 @@ msm_drm-$(CONFIG_MSM_SDE_ROTATOR) += ../rotator/sde_rotator_dev.o \
 obj-$(CONFIG_DISPLAY_BUILD)	+= msm_drm.o
 
 obj-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
+
+
+msm_drm-$(CONFIG_DISPLAY_SAMSUNG) += samsung/PBA_BOOTING/ss_dsi_panel_PBA_BOOTING_fhd.o
+msm_drm-$(CONFIG_PANEL_A23XQ_SW89112_TCFJ6606_FHD) += samsung/A23XQ_SW89112_TCFJ6606/A23XQ_SW89112_TCFJ6606_panel.o
+
+
+msm_drm-$(CONFIG_PANEL_HX83102_TV104WUM_WUXGA) += samsung/BLIC/ss_blic_lp8558_i2c.o
+
+msm_drm-$(CONFIG_PANEL_HX83121_PPC357DB11_WQXGA) += samsung/BLIC/ss_blic_lp8558_i2c.o
+
+msm_drm-$(CONFIG_PANEL_A23XQ_NT36672C_PM6585JB3_FHD) += samsung/BLIC/ss_blic_ktz8864b_i2c.o
+msm_drm-$(CONFIG_PANEL_A23XQ_TD4375_BS066FBM_FHD) += samsung/BLIC/ss_blic_ktz8864b_i2c.o
+
+msm_drm-$(CONFIG_PANEL_NT36672C_PM6585JB3_FHD) += samsung/BLIC/ss_blic_s2dps01a01_i2c.o
+
+msm_drm-$(CONFIG_PANEL_A23XQ_NT36672C_PM6585JB3_FHD) += samsung/A23XQ_NT36672C_PM6585JB3/A23XQ_NT36672C_PM6585JB3_panel.o
+
+
+msm_drm-$(CONFIG_PANEL_A23XQ_TD4375_BS066FBM_FHD) += samsung/A23XQ_TD4375_BS066FBM/A23XQ_TD4375_BS066FBM_panel.o
+
+
+msm_drm-$(CONFIG_PANEL_A23XQ_TD4375_TL066FVMC03_FHD) += samsung/A23XQ_TD4375_TL066FVMC03/A23XQ_TD4375_TL066FVMC03_panel.o
+
+
+
+msm_drm-$(CONFIG_DISPLAY_SAMSUNG) += samsung/ss_dsi_panel_sysfs.o \
+	samsung/ss_dsi_panel_debug.o \
+	samsung/ss_dsi_panel_common.o \
+	samsung/ss_dsi_mdnie_lite_common.o \
+	samsung/ss_dsi_smart_dimming_common.o \
+	samsung/ss_interpolation_common.o \
+	samsung/ss_flash_table_data_common.o \
+	samsung/ss_dpui_common.o \
+	samsung/ss_ddi_poc_common.o \
+	samsung/ss_ddi_spi_common.o \
+	samsung/ss_copr_common.o \
+	samsung/ss_wrapper_common.o
+
+ifeq ($(CONFIG_SEC_KUNIT), y)
+ifeq ($(CONFIG_UML), y)
+
+# To report to Sherlock server, add GCOV_PROFILE_($target_file_name)
+GCOV_PROFILE_ss_dsi_panel_common.o := $(CONFIG_SEC_KUNIT)
+GCOV_PROFILE_ss_dsi_panel_debug.o := $(CONFIG_SEC_KUNIT)
+endif
+endif
+
+
+# LEGO
+subdir-ccflags-$(CONFIG_SEC_KUNIT) += \
+	-Wno-unused-variable \
+	-Wno-unused-function \
+	-Wno-format
+
+
+msm_drm-$(CONFIG_DISPLAY_SAMSUNG) += samsung/SELF_DISPLAY/self_display_FAB.o \
+									samsung/SELF_DISPLAY/self_display_FAC.o \
+									samsung/SELF_DISPLAY/self_display_HAE.o \
+									samsung/SELF_DISPLAY/self_display_XA2.o \
+									samsung/SELF_DISPLAY/self_display_6W3.o \
+									samsung/SELF_DISPLAY/self_display_FC3.o
+
+msm_drm-$(CONFIG_DISPLAY_SAMSUNG) += samsung/MAFPC/ss_dsi_mafpc_FAB.o \
+	samsung/MAFPC/ss_dsi_mafpc_FAC.o \
+	samsung/MAFPC/ss_dsi_mafpc_HAE.o \
+	samsung/MAFPC/ss_dsi_mafpc_FAB.o \
+	samsung/MAFPC/ss_dsi_mafpc_XA2.o 

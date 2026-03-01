@@ -56,6 +56,11 @@
 /*Default tearcheck window size as programmed by MDP*/
 #define TEARCHECK_WINDOW_SIZE	5
 
+#if IS_ENABLED(CONFIG_DISPLAY_SAMSUNG)
+/* max size supported for dsi cmd transfer using DMA */
+#define DSI_CTRL_MAX_CMD_FET_MEMORY_SIZE 200
+#endif
+
 /**
  * enum dsi_power_state - defines power states for dsi controller.
  * @DSI_CTRL_POWER_VREG_OFF:    Digital and analog supplies for DSI controller

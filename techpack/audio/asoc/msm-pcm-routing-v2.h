@@ -10,6 +10,9 @@
 #define _MSM_PCM_ROUTING_H
 #include <dsp/apr_audio-v2.h>
 #include <dsp/q6adm-v2.h>
+#ifdef CONFIG_SEC_SND_ADAPTATION
+#include <asoc/sec_audio_adaptation.h>
+#endif
 
 /*
  * These names are used by HAL to specify the BE. If any changes are
@@ -834,6 +837,10 @@ int msm_pcm_routing_set_stream_ec_ref_chmix_cfg(
 	int fedai_id, struct msm_pcm_channel_mixer *cfg_data);
 int msm_pcm_asm_cfg_get(int fe_id, int mode);
 
+#ifdef CONFIG_SEC_SND_ADAPTATION
+int q6audio_get_copp_idx_from_port_id(int port_id, enum sb_type func_type,
+	int *copp_idx);
+#endif /* CONFIG_SEC_SND_ADAPTATION */
 
 /* array element of usr elem */
 struct snd_pcm_soft_vol_usr_elem {

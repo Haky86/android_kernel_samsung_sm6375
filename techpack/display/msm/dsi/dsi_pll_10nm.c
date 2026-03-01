@@ -12,6 +12,12 @@
 #include "dsi_pll.h"
 #include <dt-bindings/clock/mdss-10nm-pll-clk.h>
 
+#if IS_ENABLED(CONFIG_DISPLAY_SAMSUNG)
+#define PLL_CALC_DATA(addr0, addr1, data0, data1)      \
+	(((data1) << 24) | ((((addr1) / 4) & 0xFF) << 16) | \
+	 ((data0) << 8) | (((addr0) / 4) & 0xFF))
+#endif
+
 #define VCO_DELAY_USEC 1
 
 #define MHZ_250		250000000UL
@@ -372,6 +378,9 @@ static void dsi_pll_config_slave(struct dsi_pll_resource *rsc)
 	pr_debug("Slave PLL %s\n", rsc->slave ? "configured" : "absent");
 }
 
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+extern int vdd_pll_ssc_disabled;
+#endif
 static void dsi_pll_setup_config(struct dsi_pll_10nm *pll,
 				 struct dsi_pll_resource *rsc)
 {
@@ -400,6 +409,13 @@ static void dsi_pll_setup_config(struct dsi_pll_10nm *pll,
 		if (rsc->ssc_ppm)
 			config->ssc_offset = rsc->ssc_ppm;
 	}
+
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	if (vdd_pll_ssc_disabled) {
+		pr_err_once("[10nm] disable pll ssc %d\n", vdd_pll_ssc_disabled);
+		config->enable_ssc = false;
+	}
+#endif
 
 	dsi_pll_config_slave(rsc);
 }
